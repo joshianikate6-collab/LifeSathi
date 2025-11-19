@@ -1,0 +1,559 @@
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:charts_flutter/flutter.dart' as charts;
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:table_calendar/table_calendar.dart';
+
+void main() => runApp(LifeSathiApp());
+
+class LifeSathiApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'LifeSathi',
+      theme: ThemeData(primarySwatch: Colors.teal, fontFamily: 'Roboto'),
+      home: SplashScreen(),
+    );
+  }
+}
+
+// स्प्लैश स्क्रीन
+class SplashScreen extends StatefulWidget {
+  @override
+  _SplashScreenState createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends State<SplashScreen> {
+  @override
+  void initState() {
+    super.initState();
+    Future.delayed(Duration(seconds: 2), () {
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => HomeScreen()));
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(colors: [Colors.teal.shade300, Colors.teal.shade700]),
+        ),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.favorite, size: 100, color: Colors.white),
+              SizedBox(height: 20),
+              Text('LifeSathi', style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white)),
+              CircularProgressIndicator(color: Colors.white),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// होम स्क्रीन
+class HomeScreen extends StatelessWidget {
+  final List<Map<String, dynamic>> features = [
+    {'title': 'Bills', 'icon': Icons.receipt, 'color': Colors.redAccent, 'screen': BillsScreen()},
+    {'title': 'Reminders', 'icon': Icons.notifications, 'color': Colors.orangeAccent, 'screen': RemindersScreen()},
+    {'title': 'Health', 'icon': Icons.favorite, 'color': Colors.pinkAccent, 'screen': HealthScreen()},
+    {'title': 'Habits', 'icon': Icons.track_changes, 'color': Colors.blueAccent, 'screen': HabitsScreen()},
+    {'title': 'Money Tracking', 'icon': Icons.account_balance_wallet, 'color': Colors.greenAccent, 'screen': MoneyTrackingScreen()},
+    {'title': 'Meal Planning', 'icon': Icons.restaurant, 'color': Colors.purpleAccent, 'screen': MealPlanningScreen()},
+    {'title': 'Goals', 'icon': Icons.flag, 'color': Colors.indigoAccent, 'screen': GoalsScreen()},
+    {'title': 'Calendar', 'icon': Icons.calendar_today, 'color': Colors.cyanAccent, 'screen': CalendarScreen()},
+    {'title': 'Daily Routines', 'icon': Icons.schedule, 'color': Colors.amberAccent, 'screen': DailyRoutinesScreen()},
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('LifeSathi'), backgroundColor: Colors.teal),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: GridView.builder(
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, crossAxisSpacing: 10, mainAxisSpacing: 10),
+          itemCount: features.length,
+          itemBuilder: (context, index) {
+            final feature = features[index];
+            return GestureDetector(
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => feature['screen'])),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: feature['color'].withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(15),
+                  boxShadow: [BoxShadow(color: feature['color'].withOpacity(0.3), blurRadius: 10)],
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(feature['icon'], size: 40, color: feature['color']),
+                    SizedBox(height: 10),
+                    Text(feature['title'], style: TextStyle(fontWeight: FontWeight.w600), textAlign: TextAlign.center),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+// Bills Screen
+class BillsScreen extends StatefulWidget {
+  @override
+  _BillsScreenState createState() => _BillsScreenState();
+}
+
+class _BillsScreenState extends State<BillsScreen> {
+  List<String> bills = [];
+
+  @override
+  void initState() {
+    super.initState();
+    loadBills();
+  }
+
+  void loadBills() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    setState(() {
+      bills = prefs.getStringList('bills') ?? [];
+    });
+  }
+
+  void saveBills() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    prefs.setStringList('bills', bills);
+  }
+
+  void addBill(String bill) {
+    setState(() {
+      bills.add(bill);
+      saveBills();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('Bills')),
+      body: Column(
+        children: [
+          Expanded(
+            child: ListView.builder(
+              itemCount: bills.length,
+              itemBuilder: (context, index) => ListTile(
+                title: Text(bills[index]),
+                trailing: IconButton(icon: Icon(Icons.delete), onPressed: () {
+                  setState(() {
+                    bills.removeAt(index);
+                    saveBills();
+                  });
+                }),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: ElevatedButton(
+              onPressed: () async {
+                String? newBill = await showDialog<String>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: Text('Add Bill'),
+                    content: TextField(onSubmitted: (value) => Navigator.pop(context, value)),
+                  ),
+                );
+                if (newBill != null && newBill.isNotEmpty) addBill(newBill);
+              },
+              child: Text('Add Bill'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Reminders Screen
+class RemindersScreen extends StatefulWidget {
+  @override
+  _RemindersScreenState createState() => _RemindersScreenState();
+}
+
+class _RemindersScreenState extends State<RemindersScreen> {
+  List<String> reminders = [];
+
+  @override
+  void initState() {
+    super.initState();
+    loadReminders();
+  }
+
+  void loadReminders() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    setState(() {
+      reminders = prefs.getStringList('reminders') ?? [];
+    });
+  }
+
+  void saveReminders() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    prefs.setStringList('reminders', reminders);
+  }
+
+  void addReminder(String reminder) {
+    setState(() {
+      reminders.add(reminder);
+      saveReminders();
+    });
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Reminder set: $reminder')));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('Reminders')),
+      body: Column(
+        children: [
+          Expanded(
+            child: ListView.builder(
+              itemCount: reminders.length,
+              itemBuilder: (context, index) => ListTile(title: Text(reminders[index])),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: ElevatedButton(
+              onPressed: () async {
+                String? newReminder = await showDialog<String>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: Text('Add Reminder'),
+                    content: TextField(onSubmitted: (value) => Navigator.pop(context, value)),
+                  ),
+                );
+                if (newReminder != null && newReminder.isNotEmpty) addReminder(newReminder);
+              },
+              child: Text('Add Reminder'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Health Screen
+class HealthScreen extends StatefulWidget {
+  @override
+  _HealthScreenState createState() => _HealthScreenState();
+}
+
+class _HealthScreenState extends State<HealthScreen> {
+  double weight = 70.0;
+  int steps = 5000;
+
+  @override
+  void initState() {
+    super.initState();
+    loadHealth();
+  }
+
+  void loadHealth() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    setState(() {
+      weight = prefs.getDouble('weight') ?? 70.0;
+      steps = prefs.getInt('steps') ?? 5000;
+    });
+  }
+
+  void saveHealth() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    prefs.setDouble('weight', weight);
+    prefs.setInt('steps', steps);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('Health')),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            Text('Weight: ${weight}kg', style: TextStyle(fontSize: 20)),
+            Slider(value: weight, min: 40, max: 150, onChanged: (value) {
+              setState(() {
+                weight = value;
+                saveHealth();
+              });
+            }),
+            SizedBox(height: 20),
+            Text('Steps: $steps', style: TextStyle(fontSize: 20)),
+            Slider(value: steps.toDouble(), min: 0, max: 20000, onChanged: (value) {
+              setState(() {
+                steps = value.toInt();
+                saveHealth();
+              });
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Habits Screen
+class HabitsScreen extends StatefulWidget {
+  @override
+  _HabitsScreenState createState() => _HabitsScreenState();
+}
+
+class _HabitsScreenState extends State<HabitsScreen> {
+  List<Map<String, dynamic>> habits = [];
+
+  @override
+  void initState() {
+    super.initState();
+    loadHabits();
+  }
+
+  void loadHabits() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    List<String>? habitStrings = prefs.getStringList('habits');
+    if (habitStrings != null) {
+      setState(() {
+        habits = habitStrings.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      });
+    }
+  }
+
+  void saveHabits() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    prefs.setStringList('habits', habits.map((e) => e.toString()).toList());
+  }
+
+  void addHabit(String habit) {
+    setState(() {
+      habits.add({'name': habit, 'streak': 0});
+      saveHabits();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('Habits')),
+      body: Column(
+        children: [
+          Expanded(
+            child: ListView.builder(
+              itemCount: habits.length,
+              itemBuilder: (context, index) => ListTile(
+                title: Text(habits[index]['name']),
+                subtitle: Text('Streak: ${habits[index]['streak']}'),
+                trailing: IconButton(icon: Icon(Icons.check), onPressed: () {
+                  setState(() {
+                    habits[index]['streak']++;
+                    saveHabits();
+                  });
+                }),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: ElevatedButton(
+              onPressed: () async {
+                String? newHabit = await showDialog<String>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: Text('Add Habit'),
+                    content: TextField(onSubmitted: (value) => Navigator.pop(context, value)),
+                  ),
+                );
+                if (newHabit != null && newHabit.isNotEmpty) addHabit(newHabit);
+              },
+              child: Text('Add Habit'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Money Tracking Screen
+class MoneyTrackingScreen extends StatefulWidget {
+  @override
+  _MoneyTrackingScreenState createState() => _MoneyTrackingScreenState();
+}
+
+class _MoneyTrackingScreenState extends State<MoneyTrackingScreen> {
+  List<Map<String, dynamic>> transactions = [];
+
+  @override
+  void initState() {
+    super.initState();
+    loadTransactions();
+  }
+
+  void loadTransactions() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    List<String>? transStrings = prefs.getStringList('transactions');
+    if (transStrings != null) {
+      setState(() {
+        transactions = transStrings.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      });
+    }
+  }
+
+  void saveTransactions() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    prefs.setStringList('transactions', transactions.map((e) => e.toString()).toList());
+  }
+
+  void addTransaction(String desc, double amount, bool isIncome) {
+    setState(() {
+      transactions.add({'desc': desc, 'amount': amount, 'isIncome': isIncome});
+      saveTransactions();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    double totalIncome = transactions.where((t) => t['isIncome']).fold(0.0, (sum, t) => sum + t['amount']);
+    double totalExpense = transactions.where((t) => !t['isIncome']).fold(0.0, (sum, t) => sum + t['amount']);
+
+    return Scaffold(
+      appBar: AppBar(title: Text('Money Tracking')),
+      body: Column(
+        children: [
+          Text('Total Income: $totalIncome | Expense: $totalExpense'),
+          SizedBox(height: 20),
+          Container(
+            height: 200,
+            child: charts.BarChart(
+              [
+                charts.Series<Map<String, dynamic>, String>(
+                  id: 'Money',
+                  data: [{'type': 'Income', 'amount': totalIncome}, {'type': 'Expense', 'amount': totalExpense}],
+                  domainFn: (d, _) => d['type'],
+                  measureFn: (d, _) => d['amount'],
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: ListView.builder(
+              itemCount: transactions.length,
+              itemBuilder: (context, index) => ListTile(
+                title: Text(transactions[index]['desc']),
+                subtitle: Text('${transactions[index]['isIncome'] ? '+' : '-'}${transactions[index]['amount']}'),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: ElevatedButton(
+              onPressed: () async {
+                String? desc = await showDialog<String>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: Text('Add Transaction'),
+                    content: TextField(onSubmitted: (value) => Navigator.pop(context, value)),
+                  ),
+                );
+                if (desc != null) addTransaction(desc, 100.0, true);
+              },
+              child: Text('Add Transaction'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Meal Planning Screen
+class MealPlanningScreen extends StatefulWidget {
+  @override
+  _MealPlanningScreenState createState() => _MealPlanningScreenState();
+}
+
+class _MealPlanningScreenState extends State<MealPlanningScreen> {
+  List<String> meals = ['Breakfast: Oatmeal', 'Lunch: Salad', 'Dinner: Chicken'];
+
+  void addMeal(String meal) {
+    setState(() {
+      meals.add(meal);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('Meal Planning')),
+      body: Column(
+        children: [
+          Expanded(
+            child: ListView.builder(
+              itemCount: meals.length,
+              itemBuilder: (context, index) => ListTile(title: Text(meals[index])),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: ElevatedButton(
+              onPressed: () async {
+                String? newMeal = await showDialog<String>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: Text('Add Meal'),
+                    content: TextField(onSubmitted: (value) => Navigator.pop(context, value)),
+                  ),
+                );
+                if (newMeal != null && newMeal.isNotEmpty) addMeal(newMeal);
+              },
+              child: Text('Add Meal'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Goals Screen
+class GoalsScreen extends StatefulWidget {
+  @override
+  _GoalsScreenState createState() => _GoalsScreenState();
+}
+
+class _GoalsScreenState extends State<GoalsScreen> {
+  List<Map<String, dynamic>> goals = [];
+
+  void addGoal(String goal) {
+    setState(() {
+      goals.add({'name': goal, 'progress': 0.0});
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('Goals')),
+      body: Column(
+        children: [
+          Expanded(
+            child: ListView.builder(
+              itemCount: goals.length,
+              itemBuilder: (context, index) => ListTile(
+                title: Text(goals[index]['name
